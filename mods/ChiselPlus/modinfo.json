@@ -1,0 +1,10 @@
+{
+	"type": "code",
+	"name": "ChiselPlus",
+	"modid": "chiselplus",
+	"description" : "",
+	"authors": ["Novocain"],
+	"version": "1.0.0",
+	"dependencies": {
+	}
+}
