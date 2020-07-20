@@ -256,6 +256,11 @@ namespace ChiselPlus
         public static void Postfix(BlockEntityChisel __instance, ICoreAPI api)
         {
             setMeshes[__instance.Pos] = new Patch_BlockEntityChisel_Initialize();
+            if (api.Side.IsClient())
+            {
+                __instance.RegenMesh();
+                __instance.MarkDirty(true);
+            }
         }
     }
 
@@ -291,7 +296,11 @@ namespace ChiselPlus
                     break;
             }
 
-            __instance.MarkDirty(true);
+            if (__instance.Api.Side.IsClient())
+            {
+                __instance.RegenMesh();
+                __instance.MarkDirty(true);
+            }
         }
     }
 
@@ -306,6 +315,8 @@ namespace ChiselPlus
             tree.SetFloat("chiselplusRotX", store.rotation.X);
             tree.SetFloat("chiselplusRotY", store.rotation.Y);
             tree.SetFloat("chiselplusRotZ", store.rotation.Z);
+            
+            Patch_BlockEntityChisel_Initialize.setMeshes.Remove(__instance.Pos);
         }
     }
 
@@ -314,22 +325,21 @@ namespace ChiselPlus
     {
         public static void Postfix(BlockEntityChisel __instance, ITreeAttribute tree, IWorldAccessor worldAccessForResolve)
         {
-            if (!Patch_BlockEntityChisel_Initialize.setMeshes.ContainsKey(__instance.Pos))
-            {
-                Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos] = new Patch_BlockEntityChisel_Initialize();
-            }
+            Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos] = new Patch_BlockEntityChisel_Initialize();
 
             Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].mesh = (EnumChiselPlusMesh)(tree.TryGetInt("chiselplusmesh") ?? -1);
             Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].rotation.X = tree.TryGetFloat("chiselplusRotX") ?? 0.0f;
             Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].rotation.Y = tree.TryGetFloat("chiselplusRotY") ?? 0.0f;
             Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].rotation.Z = tree.TryGetFloat("chiselplusRotZ") ?? 0.0f;
+
+            if (__instance.Api?.Side.IsClient() ?? false) __instance.MarkDirty(true);
         }
     }
 
-    [HarmonyPatch(typeof(BlockEntityChisel), "OnTesselation")]
-    public class Patch_BlockEntityChisel_OnTesselation
+    [HarmonyPatch(typeof(BlockEntityChisel), "RegenMesh")]
+    public class Patch_BlockEntityChisel_RegenMesh
     {
-        public static void Prefix(BlockEntityChisel __instance, ITerrainMeshPool mesher, ITesselatorAPI tesselator)
+        public static void Postfix(BlockEntityChisel __instance)
         {
             EnumChiselPlusMesh setMesh = Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].mesh;
 
@@ -342,7 +352,7 @@ namespace ChiselPlus
                 if (name == null) return;
                 string code = string.Format("chiselplus:genericblocks-{0}", name);
 
-                tesselator.TesselateBlock(capi.World.BlockAccessor.GetBlock(new AssetLocation(code)), out MeshData mesh);
+                capi.Tesselator.TesselateBlock(capi.World.BlockAccessor.GetBlock(new AssetLocation(code)), out MeshData mesh);
 
                 TextureSource texSource = new TextureSource(__instance.Api.World as ClientMain, capi.BlockTextureAtlas.Size, capi.World.BlockAccessor.GetBlock(__instance.MaterialIds.FirstOrDefault()));
                 Dictionary<string, int> textureCodeToIdMapping = AccessTools.Field(typeof(TextureSource), "textureCodeToIdMapping").GetValue(texSource) as Dictionary<string, int>;
@@ -353,6 +363,7 @@ namespace ChiselPlus
             }
         }
     }
+
 
     public enum EnumChiselPlusMode
     {
