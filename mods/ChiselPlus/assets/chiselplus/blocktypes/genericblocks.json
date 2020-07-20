@@ -1,0 +1,11 @@
+{
+    "code": "genericblocks",
+    "variantgroups": [
+		{ "code": "mesh", "states": [ "corner1", "corner2", "pyramid", "slope", "slopehalf"] }
+    ],
+    "creativeinventory": { "meta": ["*"] },
+    "shape": {
+        "format": "gltfembedded",
+        "base": "block/{mesh}"
+    }
+}
