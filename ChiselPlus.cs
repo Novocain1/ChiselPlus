@@ -241,21 +241,37 @@ namespace ChiselPlus
         }
     }
 
+    public class ChiselPlusProperties
+    {
+        public EnumChiselPlusMesh Mesh { get; set; } = EnumChiselPlusMesh.none;
+        public Vec3f Rotation { get; set; } = new Vec3f();
+    }
+
+    public class ChiselPlusPropertyAccessor
+    {
+        public ICoreAPI api;
+
+        public ChiselPlusPropertyAccessor(ICoreAPI api)
+        {
+            this.api = api;
+        }
+
+        public Dictionary<BlockPos, ChiselPlusProperties> Properties { get => GetProperties(); }
+
+        Dictionary<BlockPos, ChiselPlusProperties> GetProperties()
+        {
+            return ObjectCacheUtil.GetOrCreate(api, "ChiselPlusProperties", () => new Dictionary<BlockPos, ChiselPlusProperties>());
+        }
+    }
+
     [HarmonyPatch(typeof(BlockEntityChisel), "Initialize")]
     public class Patch_BlockEntityChisel_Initialize
     {
-        public EnumChiselPlusMesh mesh = EnumChiselPlusMesh.none;
-        public Vec3f rotation = new Vec3f();
-
-        public static Dictionary<BlockPos, Patch_BlockEntityChisel_Initialize> setMeshes = new Dictionary<BlockPos, Patch_BlockEntityChisel_Initialize>();
-
-        public Patch_BlockEntityChisel_Initialize()
-        {
-        }
-
         public static void Postfix(BlockEntityChisel __instance, ICoreAPI api)
         {
-            setMeshes[__instance.Pos] = new Patch_BlockEntityChisel_Initialize();
+            ChiselPlusPropertyAccessor accessor = new ChiselPlusPropertyAccessor(api);
+            if (!accessor.Properties.ContainsKey(__instance.Pos)) accessor.Properties[__instance.Pos] = new ChiselPlusProperties();
+
             if (api.Side.IsClient())
             {
                 __instance.RegenMesh();
@@ -275,6 +291,9 @@ namespace ChiselPlus
                 return;
             }
 
+            ChiselPlusPropertyAccessor accessor = new ChiselPlusPropertyAccessor(__instance.Api);
+            if (!accessor.Properties.ContainsKey(__instance.Pos)) accessor.Properties[__instance.Pos] = new ChiselPlusProperties();
+
             EnumChiselPlusMode mode = (EnumChiselPlusMode)__instance.ChiselMode(byPlayer);
             
             switch (mode)
@@ -282,14 +301,16 @@ namespace ChiselPlus
                 case EnumChiselPlusMode.ChiselPlus:
                     if (isBreak)
                     {
-                        EnumChiselPlusMesh mesh = Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].mesh;
-                        Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].mesh = mesh > EnumChiselPlusMesh.slopehalf ? EnumChiselPlusMesh.none : mesh + 1;
+                        //accessor.Properties[__instance.Pos] = new ChiselPlusProperties();
+
+                        EnumChiselPlusMesh mesh = accessor.Properties[__instance.Pos].Mesh;
+                        accessor.Properties[__instance.Pos].Mesh = mesh > EnumChiselPlusMesh.slopehalf ? EnumChiselPlusMesh.none : mesh + 1;
                     }
                     else
                     {
-                        Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].rotation.X += byPlayer.Entity.Controls.Sneak && !byPlayer.Entity.Controls.Sprint ? 45 : 0;
-                        Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].rotation.Y += byPlayer.Entity.Controls.Sprint && !byPlayer.Entity.Controls.Sneak ? 45 : 0;
-                        Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].rotation.Z += byPlayer.Entity.Controls.Sneak && byPlayer.Entity.Controls.Sprint ? 45 : 0;
+                        accessor.Properties[__instance.Pos].Rotation.X += byPlayer.Entity.Controls.Sneak && !byPlayer.Entity.Controls.Sprint ? 45 : 0;
+                        accessor.Properties[__instance.Pos].Rotation.Y += byPlayer.Entity.Controls.Sprint && !byPlayer.Entity.Controls.Sneak ? 45 : 0;
+                        accessor.Properties[__instance.Pos].Rotation.Z += byPlayer.Entity.Controls.Sneak && byPlayer.Entity.Controls.Sprint ? 45 : 0;
                     }
                     break;
                 default:
@@ -309,14 +330,14 @@ namespace ChiselPlus
     {
         public static void Postfix(BlockEntityChisel __instance, ITreeAttribute tree)
         {
-            var store = Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos];
+            ChiselPlusPropertyAccessor accessor = new ChiselPlusPropertyAccessor(__instance.Api);
 
-            tree.SetInt("chiselplusmesh", (int)store.mesh);
-            tree.SetFloat("chiselplusRotX", store.rotation.X);
-            tree.SetFloat("chiselplusRotY", store.rotation.Y);
-            tree.SetFloat("chiselplusRotZ", store.rotation.Z);
-            
-            Patch_BlockEntityChisel_Initialize.setMeshes.Remove(__instance.Pos);
+            var store = accessor.Properties[__instance.Pos];
+
+            tree.SetInt("chiselplusmesh", (int)store.Mesh);
+            tree.SetFloat("chiselplusRotX", store.Rotation.X);
+            tree.SetFloat("chiselplusRotY", store.Rotation.Y);
+            tree.SetFloat("chiselplusRotZ", store.Rotation.Z);
         }
     }
 
@@ -325,12 +346,14 @@ namespace ChiselPlus
     {
         public static void Postfix(BlockEntityChisel __instance, ITreeAttribute tree, IWorldAccessor worldAccessForResolve)
         {
-            Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos] = new Patch_BlockEntityChisel_Initialize();
+            ChiselPlusPropertyAccessor accessor = new ChiselPlusPropertyAccessor(worldAccessForResolve.Api);
 
-            Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].mesh = (EnumChiselPlusMesh)(tree.TryGetInt("chiselplusmesh") ?? -1);
-            Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].rotation.X = tree.TryGetFloat("chiselplusRotX") ?? 0.0f;
-            Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].rotation.Y = tree.TryGetFloat("chiselplusRotY") ?? 0.0f;
-            Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].rotation.Z = tree.TryGetFloat("chiselplusRotZ") ?? 0.0f;
+            if (!accessor.Properties.ContainsKey(__instance.Pos)) accessor.Properties[__instance.Pos] = new ChiselPlusProperties();
+
+            accessor.Properties[__instance.Pos].Mesh = (EnumChiselPlusMesh)(tree.TryGetInt("chiselplusmesh") ?? -1);
+            accessor.Properties[__instance.Pos].Rotation.X = tree.TryGetFloat("chiselplusRotX") ?? 0.0f;
+            accessor.Properties[__instance.Pos].Rotation.Y = tree.TryGetFloat("chiselplusRotY") ?? 0.0f;
+            accessor.Properties[__instance.Pos].Rotation.Z = tree.TryGetFloat("chiselplusRotZ") ?? 0.0f;
 
             if (__instance.Api?.Side.IsClient() ?? false) __instance.MarkDirty(true);
         }
@@ -341,11 +364,13 @@ namespace ChiselPlus
     {
         public static void Postfix(BlockEntityChisel __instance)
         {
-            EnumChiselPlusMesh setMesh = Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].mesh;
+            ChiselPlusPropertyAccessor accessor = new ChiselPlusPropertyAccessor(__instance.Api);
+
+            EnumChiselPlusMesh setMesh = accessor.Properties[__instance.Pos].Mesh;
 
             if (setMesh != EnumChiselPlusMesh.none)
             {
-                Vec3f rot = Patch_BlockEntityChisel_Initialize.setMeshes[__instance.Pos].rotation;
+                Vec3f rot = accessor.Properties[__instance.Pos].Rotation;
 
                 ICoreClientAPI capi = (__instance.Api as ICoreClientAPI);
                 string name = Enum.GetName(typeof(EnumChiselPlusMesh), setMesh);
