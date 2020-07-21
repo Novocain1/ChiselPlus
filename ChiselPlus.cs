@@ -48,9 +48,7 @@ namespace ChiselPlus
 
         public static void Drawcorner1_svg(Context cr, int x, int y, float width, float height, double[] rgba)
         {
-            ImageSurface temp_surface;
-            Context old_cr;
-            Pattern pattern = null;
+            Pattern pattern;
             Matrix matrix = cr.Matrix;
 
             cr.Save();
@@ -229,8 +227,6 @@ namespace ChiselPlus
 
             cr.Restore();
         }
-
-
     }
 
     [HarmonyPatch(typeof(ItemChisel), "SetToolMode")]
@@ -263,11 +259,34 @@ namespace ChiselPlus
             this.api = api;
         }
 
-        public Dictionary<BlockPos, ChiselPlusProperties> Properties { get => GetProperties(); }
+        public Dictionary<BlockPos, ChiselPlusProperties> Properties { get => GetProperties(); set => SetProperties(value); }
+
+        void UpdateProperties(BlockPos pos)
+        {
+            SetPropertyValues(pos, Properties?[pos]);
+        }
+
+        void SetPropertyValues(BlockPos pos, ChiselPlusProperties props)
+        {
+            var sprop = (api.ObjectCache["ChiselPlusProperties"] as Dictionary<BlockPos, ChiselPlusProperties>);
+            
+            if (sprop != null && sprop.ContainsKey(pos))
+            {
+                (api.ObjectCache["ChiselPlusProperties"] as Dictionary<BlockPos, ChiselPlusProperties>)[pos].Mesh = props.Mesh;
+                (api.ObjectCache["ChiselPlusProperties"] as Dictionary<BlockPos, ChiselPlusProperties>)[pos].Rotation = props.Rotation;
+            }
+
+        }
+
 
         Dictionary<BlockPos, ChiselPlusProperties> GetProperties()
         {
             return ObjectCacheUtil.GetOrCreate(api, "ChiselPlusProperties", () => new Dictionary<BlockPos, ChiselPlusProperties>());
+        }
+
+        void SetProperties(Dictionary<BlockPos, ChiselPlusProperties> val)
+        {
+            api.ObjectCache["ChiselPlusProperties"] = val;
         }
     }
 
@@ -287,10 +306,10 @@ namespace ChiselPlus
         }
     }
 
-    [HarmonyPatch(typeof(BlockEntityChisel), "UpdateVoxel")]
+    [HarmonyPatch(typeof(BlockEntityChisel), "OnBlockInteract")]
     public class Patch_BlockEntityChisel_UpdateVoxel
     {
-        public static void Postfix(BlockEntityChisel __instance, IPlayer byPlayer, ItemSlot itemslot, Vec3i voxelPos, BlockFacing facing, bool isBreak)
+        public static void Postfix(BlockEntityChisel __instance, IPlayer byPlayer, BlockSelection blockSel, bool isBreak)
         {
             if (!__instance.Api.World.Claims.TryAccess(byPlayer, __instance.Pos, EnumBlockAccessFlags.Use))
             {
@@ -302,7 +321,7 @@ namespace ChiselPlus
             if (!accessor.Properties.ContainsKey(__instance.Pos)) accessor.Properties[__instance.Pos] = new ChiselPlusProperties();
 
             EnumChiselPlusMode mode = (EnumChiselPlusMode)__instance.ChiselMode(byPlayer);
-            
+
             switch (mode)
             {
                 case EnumChiselPlusMode.ChiselPlus:
