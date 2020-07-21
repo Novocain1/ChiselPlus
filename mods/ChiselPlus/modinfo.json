@@ -2,9 +2,9 @@
 	"type": "code",
 	"name": "ChiselPlus",
 	"modid": "chiselplus",
-	"description" : "",
+	"description" : "Lets the player create non blocky blocks.",
 	"authors": ["Novocain"],
-	"version": "1.0.0",
+	"version": "1.0.0-pre.1",
 	"dependencies": {
 	}
 }

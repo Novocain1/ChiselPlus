@@ -13,6 +13,7 @@ using Vintagestory.API.Config;
 using Vintagestory.API.Util;
 using Cairo;
 using Vintagestory.API.Datastructures;
+using Vintagestory.ServerMods;
 
 namespace ChiselPlus
 {
@@ -334,9 +335,11 @@ namespace ChiselPlus
                     }
                     else
                     {
-                        accessor.Properties[__instance.Pos].Rotation.X += byPlayer.Entity.Controls.Sneak && !byPlayer.Entity.Controls.Sprint ? 45 : 0;
-                        accessor.Properties[__instance.Pos].Rotation.Y += byPlayer.Entity.Controls.Sprint && !byPlayer.Entity.Controls.Sneak ? 45 : 0;
-                        accessor.Properties[__instance.Pos].Rotation.Z += byPlayer.Entity.Controls.Sneak && byPlayer.Entity.Controls.Sprint ? 45 : 0;
+                        bool success;
+
+                        accessor.Properties[__instance.Pos].Rotation.Z += (success = byPlayer.Entity.Controls.Sneak) ? 45 : 0;
+                        accessor.Properties[__instance.Pos].Rotation.X += (success = byPlayer.Entity.Controls.Sprint && !success) ? 45 : 0;
+                        accessor.Properties[__instance.Pos].Rotation.Y += !success ? 45 : 0;
                     }
                     break;
                 default:
@@ -411,6 +414,42 @@ namespace ChiselPlus
                 mesh.SetTexPos(texSource[textureCodeToIdMapping.FirstOrDefault().Key]);
                 mesh.Rotate(new Vec3f(0.5f, 0.5f, 0.5f), GameMath.DEG2RAD * rot.X, GameMath.DEG2RAD * rot.Y, GameMath.DEG2RAD * rot.Z);
                 __instance.Mesh = mesh;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(ChiselBlockModelCache), "GetOrCreateMeshRef")]
+    public class Patch_ChiselBlockModelCache_GetOrCreateMeshRef
+    {
+        public static void Postfix(ItemStack forStack, ref ICoreClientAPI ___capi, ref MeshRef __result)
+        {
+            int? setMesh = forStack.Attributes.TryGetInt("chiselplusmesh");
+            if (setMesh != null && setMesh != (int)EnumChiselPlusMesh.none)
+            {
+                Vec3f rot = new Vec3f()
+                {
+                    X = forStack.Attributes.TryGetFloat("chiselplusRotX") ?? 0.0f,
+                    Y = forStack.Attributes.TryGetFloat("chiselplusRotY") ?? 0.0f,
+                    Z = forStack.Attributes.TryGetFloat("chiselplusRotZ") ?? 0.0f
+                };
+
+                string name = Enum.GetName(typeof(EnumChiselPlusMesh), setMesh);
+                IntArrayAttribute materials = forStack.Attributes["materials"] as IntArrayAttribute;
+
+                if (name == null || materials == null) return;
+
+                string code = string.Format("chiselplus:genericblocks-{0}", name);
+
+                ___capi.Tesselator.TesselateBlock(___capi.World.BlockAccessor.GetBlock(new AssetLocation(code)), out MeshData mesh);
+
+                TextureSource texSource = new TextureSource(___capi.World as ClientMain, ___capi.BlockTextureAtlas.Size, ___capi.World.BlockAccessor.GetBlock(materials.value.FirstOrDefault()));
+
+                Dictionary<string, int> textureCodeToIdMapping = AccessTools.Field(typeof(TextureSource), "textureCodeToIdMapping").GetValue(texSource) as Dictionary<string, int>;
+
+                mesh.SetTexPos(texSource[textureCodeToIdMapping.FirstOrDefault().Key]);
+                mesh.Rotate(new Vec3f(0.5f, 0.5f, 0.5f), GameMath.DEG2RAD * rot.X, GameMath.DEG2RAD * rot.Y, GameMath.DEG2RAD * rot.Z);
+                
+                __result = ___capi.Render.UploadMesh(mesh);
             }
         }
     }
