@@ -65,12 +65,12 @@ namespace ChiselPlus
             cr.SetSource(pattern);
 
             cr.NewPath();
-            cr.MoveTo(306.226563, 266.78125);
-            cr.LineTo(529.988281, 679.785156);
-            cr.LineTo(921.699219, 457.308594);
-            cr.LineTo(737.460938, 134.246094);
+            cr.MoveTo(304.226563, 272.78125);
+            cr.LineTo(527.988281, 685.785156);
+            cr.LineTo(919.699219, 463.308594);
+            cr.LineTo(735.460938, 140.246094);
             cr.ClosePath();
-            cr.MoveTo(306.226563, 266.78125);
+            cr.MoveTo(304.226563, 272.78125);
             cr.Tolerance = 0.1;
             cr.Antialias = Antialias.Default;
             cr.FillRule = FillRule.Winding;
@@ -86,12 +86,12 @@ namespace ChiselPlus
             cr.SetSource(pattern);
 
             cr.NewPath();
-            cr.MoveTo(306.226563, 266.78125);
-            cr.LineTo(529.988281, 679.785156);
-            cr.LineTo(921.699219, 457.308594);
-            cr.LineTo(737.460938, 134.246094);
+            cr.MoveTo(304.226563, 272.78125);
+            cr.LineTo(527.988281, 685.785156);
+            cr.LineTo(919.699219, 463.308594);
+            cr.LineTo(735.460938, 140.246094);
             cr.ClosePath();
-            cr.MoveTo(306.226563, 266.78125);
+            cr.MoveTo(304.226563, 272.78125);
             cr.Tolerance = 0.1;
             cr.Antialias = Antialias.Default;
             matrix = new Matrix(3.779527, 0, 0, 3.779527, 0.0000188976, 0);
@@ -104,10 +104,10 @@ namespace ChiselPlus
             cr.SetSource(pattern);
 
             cr.NewPath();
-            cr.MoveTo(306.226563, 256.78125);
-            cr.LineTo(137.785156, 175.71875);
-            cr.LineTo(555.960938, 72.734375);
-            cr.LineTo(737.460938, 124.246094);
+            cr.MoveTo(300.226563, 260.78125);
+            cr.LineTo(131.785156, 179.71875);
+            cr.LineTo(549.960938, 76.734375);
+            cr.LineTo(731.460938, 128.246094);
             cr.Tolerance = 0.1;
             cr.Antialias = Antialias.Default;
             cr.FillRule = FillRule.Winding;
@@ -123,10 +123,10 @@ namespace ChiselPlus
             cr.SetSource(pattern);
 
             cr.NewPath();
-            cr.MoveTo(306.226563, 256.78125);
-            cr.LineTo(137.785156, 175.71875);
-            cr.LineTo(555.960938, 72.734375);
-            cr.LineTo(737.460938, 124.246094);
+            cr.MoveTo(300.226563, 260.78125);
+            cr.LineTo(131.785156, 179.71875);
+            cr.LineTo(549.960938, 76.734375);
+            cr.LineTo(731.460938, 128.246094);
             cr.Tolerance = 0.1;
             cr.Antialias = Antialias.Default;
             matrix = new Matrix(3.779527, 0, 0, 3.779527, 0.0000188976, 0);
@@ -201,24 +201,6 @@ namespace ChiselPlus
             cr.LineTo(194.152344, 660.5);
             cr.LineTo(518.273438, 931.691406);
             cr.LineTo(519.984375, 689.785156);
-            cr.Tolerance = 0.1;
-            cr.Antialias = Antialias.Default;
-            matrix = new Matrix(3.779527, 0, 0, 3.779527, 0.0000188976, 0);
-            pattern.Matrix = matrix;
-            cr.StrokePreserve();
-            if (pattern != null) pattern.Dispose();
-
-            cr.Operator = Operator.Over;
-            cr.LineWidth = 0.264583;
-            cr.MiterLimit = 4;
-            cr.LineCap = LineCap.Butt;
-            cr.LineJoin = LineJoin.Miter;
-            pattern = new SolidPattern(rgba[0], rgba[1], rgba[2], rgba[3]);
-            cr.SetSource(pattern);
-
-            cr.NewPath();
-            cr.MoveTo(306.226563, 256.78125);
-            cr.LineTo(737.460938, 124.246094);
             cr.Tolerance = 0.1;
             cr.Antialias = Antialias.Default;
             matrix = new Matrix(3.779527, 0, 0, 3.779527, 0.0000188976, 0);
