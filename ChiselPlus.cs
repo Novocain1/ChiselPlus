@@ -375,35 +375,42 @@ namespace ChiselPlus
     {
         public static void Postfix(BlockEntityChisel __instance)
         {
-            ChiselPlusPropertyAccessor accessor = new ChiselPlusPropertyAccessor(__instance.Api);
-
-            EnumChiselPlusMesh setMesh = accessor.Properties[__instance.Pos].Mesh;
-
-            if (setMesh != EnumChiselPlusMesh.none)
+            try
             {
-                Vec3f rot = accessor.Properties[__instance.Pos].Rotation;
+                ChiselPlusPropertyAccessor accessor = new ChiselPlusPropertyAccessor(__instance.Api);
 
-                ICoreClientAPI capi = (__instance.Api as ICoreClientAPI);
-                string name = Enum.GetName(typeof(EnumChiselPlusMesh), setMesh);
-                if (name == null) return;
-                string code = string.Format("chiselplus:genericblocks-{0}", name);
+                EnumChiselPlusMesh setMesh = accessor.Properties[__instance.Pos].Mesh;
 
-                capi.Tesselator.TesselateBlock(capi.World.BlockAccessor.GetBlock(new AssetLocation(code)), out MeshData mesh);
+                if (setMesh != EnumChiselPlusMesh.none && __instance.MaterialIds != null)
+                {
+                    Vec3f rot = accessor.Properties[__instance.Pos].Rotation;
 
-                TextureSource texSource = new TextureSource(__instance.Api.World as ClientMain, capi.BlockTextureAtlas.Size, capi.World.BlockAccessor.GetBlock(__instance.MaterialIds.FirstOrDefault()));
-                Dictionary<string, int> textureCodeToIdMapping = AccessTools.Field(typeof(TextureSource), "textureCodeToIdMapping").GetValue(texSource) as Dictionary<string, int>;
+                    ICoreClientAPI capi = (__instance.Api as ICoreClientAPI);
+                    string name = Enum.GetName(typeof(EnumChiselPlusMesh), setMesh);
+                    if (name == null) return;
+                    string code = string.Format("chiselplus:genericblocks-{0}", name);
 
-                mesh.SetTexPos(texSource[textureCodeToIdMapping.FirstOrDefault().Key]);
-                mesh.Rotate(new Vec3f(0.5f, 0.5f, 0.5f), GameMath.DEG2RAD * rot.X, GameMath.DEG2RAD * rot.Y, GameMath.DEG2RAD * rot.Z);
-                __instance.Mesh = mesh;
+                    capi.Tesselator.TesselateBlock(capi.World.BlockAccessor.GetBlock(new AssetLocation(code)), out MeshData mesh);
+
+                    TextureSource texSource = new TextureSource(__instance.Api.World as ClientMain, capi.BlockTextureAtlas.Size, capi.World.BlockAccessor.GetBlock(__instance.MaterialIds.FirstOrDefault()));
+                    Dictionary<string, int> textureCodeToIdMapping = AccessTools.Field(typeof(TextureSource), "textureCodeToIdMapping").GetValue(texSource) as Dictionary<string, int>;
+
+                    mesh.SetTexPos(texSource[textureCodeToIdMapping.FirstOrDefault().Key]);
+                    mesh.Rotate(new Vec3f(0.5f, 0.5f, 0.5f), GameMath.DEG2RAD * rot.X, GameMath.DEG2RAD * rot.Y, GameMath.DEG2RAD * rot.Z);
+                    __instance.Mesh = mesh;
+                }
             }
+            catch (Exception ex)
+            {
+            }
+
         }
     }
 
     [HarmonyPatch(typeof(ChiselBlockModelCache), "GetOrCreateMeshRef")]
     public class Patch_ChiselBlockModelCache_GetOrCreateMeshRef
     {
-        public static void Postfix(ItemStack forStack, ref ICoreClientAPI ___capi, ref MeshRef __result)
+        public static void Postfix(ChiselBlockModelCache __instance, ItemStack forStack, ref ICoreClientAPI ___capi, ref MeshRef __result)
         {
             int? setMesh = forStack.Attributes.TryGetInt("chiselplusmesh");
             if (setMesh != null && setMesh != (int)EnumChiselPlusMesh.none)
@@ -430,7 +437,7 @@ namespace ChiselPlus
 
                 mesh.SetTexPos(texSource[textureCodeToIdMapping.FirstOrDefault().Key]);
                 mesh.Rotate(new Vec3f(0.5f, 0.5f, 0.5f), GameMath.DEG2RAD * rot.X, GameMath.DEG2RAD * rot.Y, GameMath.DEG2RAD * rot.Z);
-                
+
                 __result = ___capi.Render.UploadMesh(mesh);
             }
         }
@@ -446,5 +453,10 @@ namespace ChiselPlus
     public enum EnumChiselPlusMesh
     {
         none = -1, corner1, corner2, pyramid, slope, slopehalf
+    }
+
+    public static class HackMan
+    {
+        public static T GetField<T, K>(this K instance, string fieldname) => (T)AccessTools.Field(instance.GetType(), fieldname).GetValue(instance);
     }
 }
