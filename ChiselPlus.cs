@@ -14,21 +14,25 @@ using Vintagestory.API.Util;
 using Cairo;
 using Vintagestory.API.Datastructures;
 using Vintagestory.ServerMods;
+using System.Reflection;
 
 namespace ChiselPlus
 {
     public class ChiselPlusSystem : ModSystem
     {
+        public const string patchCode = "Novocain.ModSystem.ChiselPlus";
+        public Harmony harmonyInstance = new Harmony("ModSystem.ChiselPlus");
+
         public override void Start(ICoreAPI api)
         {
-            Patch();
+            harmonyInstance.PatchAll();
         }
 
-        public void Patch()
+        public override void Dispose()
         {
-            var Harmony = new Harmony("ModSystem.ChiselPlus");
-            Harmony.PatchAll();
+            harmonyInstance.UnpatchAll("ModSystem.ChiselPlus");
         }
+
     }
 
     [HarmonyPatch(typeof(ItemChisel), "OnLoaded")]
@@ -290,7 +294,7 @@ namespace ChiselPlus
     }
 
     [HarmonyPatch(typeof(BlockEntityChisel), "OnBlockInteract")]
-    public class Patch_BlockEntityChisel_UpdateVoxel
+    public class Patch_BlockEntityChisel_OnBlockInteract
     {
         public static void Postfix(BlockEntityChisel __instance, IPlayer byPlayer, BlockSelection blockSel, bool isBreak)
         {
@@ -305,27 +309,29 @@ namespace ChiselPlus
 
             EnumChiselPlusMode mode = (EnumChiselPlusMode)__instance.ChiselMode(byPlayer);
 
-            switch (mode)
+            if (__instance.Api.Side.IsServer())
             {
-                case EnumChiselPlusMode.ChiselPlus:
-                    if (isBreak)
-                    {
-                        //accessor.Properties[__instance.Pos] = new ChiselPlusProperties();
+                switch (mode)
+                {
+                    case EnumChiselPlusMode.ChiselPlus:
+                        if (isBreak)
+                        {
+                            EnumChiselPlusMesh mesh = accessor.Properties[__instance.Pos].Mesh;
+                            accessor.Properties[__instance.Pos].Mesh = mesh > EnumChiselPlusMesh.slopehalf ? EnumChiselPlusMesh.none : mesh + 1;
+                        }
+                        else
+                        {
+                            bool success;
 
-                        EnumChiselPlusMesh mesh = accessor.Properties[__instance.Pos].Mesh;
-                        accessor.Properties[__instance.Pos].Mesh = mesh > EnumChiselPlusMesh.slopehalf ? EnumChiselPlusMesh.none : mesh + 1;
-                    }
-                    else
-                    {
-                        bool success;
-
-                        accessor.Properties[__instance.Pos].Rotation.Z += (success = byPlayer.Entity.Controls.Sneak) ? 45 : 0;
-                        accessor.Properties[__instance.Pos].Rotation.X += (success = byPlayer.Entity.Controls.Sprint && !success) ? 45 : 0;
-                        accessor.Properties[__instance.Pos].Rotation.Y += !success ? 45 : 0;
-                    }
-                    break;
-                default:
-                    break;
+                            accessor.Properties[__instance.Pos].Rotation.Z += (success = byPlayer.Entity.Controls.Sneak) ? 45 : 0;
+                            accessor.Properties[__instance.Pos].Rotation.X += (success = byPlayer.Entity.Controls.Sprint && !success) ? 45 : 0;
+                            accessor.Properties[__instance.Pos].Rotation.Y += !success ? 45 : 0;
+                        }
+                        __instance.MarkDirty();
+                        break;
+                    default:
+                        break;
+                }
             }
 
             if (__instance.Api.Side.IsClient())
@@ -339,7 +345,7 @@ namespace ChiselPlus
     [HarmonyPatch(typeof(BlockEntityChisel), "ToTreeAttributes")]
     public class Patch_BlockEntityChisel_ToTreeAttributes
     {
-        public static void Postfix(BlockEntityChisel __instance, ITreeAttribute tree)
+        public static void Prefix(BlockEntityChisel __instance, ref ITreeAttribute tree)
         {
             ChiselPlusPropertyAccessor accessor = new ChiselPlusPropertyAccessor(__instance.Api);
 
@@ -355,7 +361,7 @@ namespace ChiselPlus
     [HarmonyPatch(typeof(BlockEntityChisel), "FromTreeAtributes")]
     public class Patch_BlockEntityChisel_FromTreeAtributes
     {
-        public static void Postfix(BlockEntityChisel __instance, ITreeAttribute tree, IWorldAccessor worldAccessForResolve)
+        public static void Postfix(BlockEntityChisel __instance, ref ITreeAttribute tree, ref IWorldAccessor worldAccessForResolve)
         {
             ChiselPlusPropertyAccessor accessor = new ChiselPlusPropertyAccessor(worldAccessForResolve.Api);
 
@@ -400,7 +406,7 @@ namespace ChiselPlus
                     __instance.Mesh = mesh;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
             }
 
@@ -433,7 +439,7 @@ namespace ChiselPlus
 
                 TextureSource texSource = new TextureSource(___capi.World as ClientMain, ___capi.BlockTextureAtlas.Size, ___capi.World.BlockAccessor.GetBlock(materials.value.FirstOrDefault()));
 
-                Dictionary<string, int> textureCodeToIdMapping = AccessTools.Field(typeof(TextureSource), "textureCodeToIdMapping").GetValue(texSource) as Dictionary<string, int>;
+                Dictionary<string, int> textureCodeToIdMapping = texSource.GetField<Dictionary<string, int>>("textureCodeToIdMapping");
 
                 mesh.SetTexPos(texSource[textureCodeToIdMapping.FirstOrDefault().Key]);
                 mesh.Rotate(new Vec3f(0.5f, 0.5f, 0.5f), GameMath.DEG2RAD * rot.X, GameMath.DEG2RAD * rot.Y, GameMath.DEG2RAD * rot.Z);
@@ -457,6 +463,14 @@ namespace ChiselPlus
 
     public static class HackMan
     {
-        public static T GetField<T, K>(this K instance, string fieldname) => (T)AccessTools.Field(instance.GetType(), fieldname).GetValue(instance);
+        public static T GetField<T>(this object instance, string fieldname) => (T)AccessTools.Field(instance.GetType(), fieldname).GetValue(instance);
+        public static T GetProperty<T>(this object instance, string fieldname) => (T)AccessTools.Property(instance.GetType(), fieldname).GetValue(instance);
+        public static T CallMethod<T>(this object instance, string method, params object[] args) => (T)AccessTools.Method(instance.GetType(), method).Invoke(instance, args);
+        public static void CallMethod(this object instance, string method, params object[] args) => AccessTools.Method(instance.GetType(), method)?.Invoke(instance, args);
+        public static void CallMethod(this object instance, string method) => AccessTools.Method(instance.GetType(), method)?.Invoke(instance, null);
+        public static object CreateInstance(this Type type) => AccessTools.CreateInstance(type);
+
+        public static void SetField(this object instance, string fieldname, object setVal) => AccessTools.Field(instance.GetType(), fieldname).SetValue(instance, setVal);
+        public static MethodInfo GetMethod(this object instance, string method) => AccessTools.Method(instance.GetType(), method);
     }
 }
